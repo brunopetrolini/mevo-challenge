@@ -1,9 +1,12 @@
 import { Controller, Post } from '@nestjs/common';
 import { parseFile } from 'fast-csv';
 import { resolve } from 'path';
+import { PrismaService } from 'src/services/prisma.service';
 
 @Controller('/transactions')
 export class TransactionsFileUploadController {
+  constructor(private readonly prismaService: PrismaService) {}
+
   @Post('/upload')
   public async uploadFile() {
     parseFile(resolve('./payload.csv'), {
