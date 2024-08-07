@@ -5,22 +5,54 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
-import { PrismaService } from 'src/services/prisma.service';
+import {
+  SaveTransactionsUsecase,
+  Transaction,
+} from 'src/usecases/save-transactions.usecase';
 import { parseCSVFiles } from 'src/utils/parse-files';
+
+type CsvFileData = {
+  to: string;
+  from: string;
+  amount: string;
+};
+
+type CsvFile = {
+  name: string;
+  content: CsvFileData[];
+};
 
 @Controller('/transactions')
 export class TransactionsFileUploadController {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly saveTransactionsUsecase: SaveTransactionsUsecase,
+  ) {}
 
   @Post('/upload')
   @UseInterceptors(AnyFilesInterceptor())
   public async uploadFile(@UploadedFiles() files: Array<Express.Multer.File>) {
-    const filesData = parseCSVFiles<{
-      to: string;
-      from: string;
-      amount: string;
-    }>(files);
+    const filesData = parseCSVFiles<CsvFileData>(files);
 
-    return filesData;
+    const transactions = this.transformToTransaction(filesData);
+    const result = await this.saveTransactionsUsecase.execute(transactions);
+
+    return result;
+  }
+
+  private transformToTransaction(filesData: CsvFile[]): Transaction[] {
+    const transactions: Transaction[] = [];
+
+    filesData.forEach((file) => {
+      file.content.forEach((fileContent) =>
+        transactions.push({
+          to: fileContent.to,
+          from: fileContent.from,
+          amount: Number(fileContent.amount),
+          file: file.name,
+        }),
+      );
+    });
+
+    return transactions;
   }
 }
