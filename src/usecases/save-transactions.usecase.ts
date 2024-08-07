@@ -56,10 +56,9 @@ export class SaveTransactionsUsecase {
         data: rejectedTransactionsResume,
       });
 
-    const saveTransactionsPromise =
-      this.prismaService.transaction.createManyAndReturn({
-        data: transactionsToCreate,
-      });
+    const saveTransactionsPromise = this.prismaService.transaction.createMany({
+      data: transactionsToCreate,
+    });
 
     await Promise.all([saveTransactionsPromise, transactionsResumePromise]);
 
