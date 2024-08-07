@@ -14,8 +14,6 @@ function convertCSVtoObj(csv: string) {
       continue;
     }
 
-    console.log(currentLine);
-
     const obj = {};
 
     for (let header = 0; header < headers.length; header++) {
