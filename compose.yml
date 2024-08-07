@@ -1,0 +1,13 @@
+services:
+  postgres:
+    container_name: mevo-pg
+    image: postgres
+    environment:
+      POSTGRES_DB: mevo
+      POSTGRES_USER: docker
+      POSTGRES_PASSWORD: docker
+      PGDATA: /data/postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./data/pg:/data/postgres
