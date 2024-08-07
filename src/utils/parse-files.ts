@@ -1,4 +1,4 @@
-function convertCSVtoJSON(csv: string) {
+function convertCSVtoObj(csv: string) {
   const rows = csv.split('\n');
 
   const result = [];
@@ -20,7 +20,7 @@ function convertCSVtoJSON(csv: string) {
 
 function parseCSVFiles<T>(files: Express.Multer.File[]): T {
   const stringifiedFiles = files.map((file) => file.buffer.toString());
-  const data = stringifiedFiles.map((file) => convertCSVtoJSON(file));
+  const data = stringifiedFiles.map((file) => convertCSVtoObj(file));
   return data as T;
 }
 
