@@ -24,11 +24,11 @@ model Transaction {
   @@map("transactions")
 }
 
-model TransactionResume {
+model TransactionsResume {
   id                String @id @default(uuid())
   reason            String
   fileName          String
-  totalNonProcessed String @map("total_non_processed")
+  totalNonProcessed Int    @map("total_non_processed")
 
   @@map("transactions_resume")
 }
