@@ -14,26 +14,11 @@ export class SaveTransactionsUsecase {
   constructor(private readonly prismaService: PrismaService) {}
 
   public async execute(transactions: Transaction[]) {
-    const maxAmountInCentsPerTransaction = 5000000;
-    const suspiciousTransactionsFilter = (transaction: Transaction) =>
-      transaction.amount > maxAmountInCentsPerTransaction;
+    const { nonSuspiciousTransactions, suspiciousTransactions } =
+      this.findSuspiciousTransactions(transactions);
 
-    const suspiciousTransactions = transactions.filter(
-      suspiciousTransactionsFilter,
-    );
-    const nonSuspiciousTransactions = transactions.filter(
-      (transaction) => !suspiciousTransactionsFilter(transaction),
-    );
-
-    const negativedTransactionsFilter = (transaction: Transaction) =>
-      transaction.amount < 0;
-    const negativedTransactions = nonSuspiciousTransactions.filter(
-      negativedTransactionsFilter,
-    );
-
-    const transactionsWithValidAmount = transactions.filter(
-      (transaction) => !negativedTransactionsFilter(transaction),
-    );
+    const { nonNegativedTransactions, negativedTransactions } =
+      this.findNegativedTransactions(nonSuspiciousTransactions);
 
     const rejectedTransactionsResume: Omit<TransactionsResume, 'id'> = {
       fileName: suspiciousTransactions[0].file || negativedTransactions[0].file,
@@ -43,7 +28,7 @@ export class SaveTransactionsUsecase {
     };
 
     const { uniquesTransactions, duplicatedTransactions } =
-      this.findDuplicatedTransactions(transactionsWithValidAmount);
+      this.findDuplicatedTransactions(nonNegativedTransactions);
 
     if (duplicatedTransactions.length !== 0) {
       rejectedTransactionsResume.reason =
@@ -81,6 +66,43 @@ export class SaveTransactionsUsecase {
     return {
       transactionsProcessed: transactions.length,
     };
+  }
+
+  private findNegativedTransactions(transactions: Transaction[]) {
+    const nonNegativedTransactions: Transaction[] = [];
+    const negativedTransactions: Transaction[] = [];
+
+    const isNegativedTransaction = (transaction: Transaction) =>
+      transaction.amount < 0;
+
+    transactions.forEach((transaction) => {
+      if (isNegativedTransaction(transaction)) {
+        negativedTransactions.push(transaction);
+      } else {
+        nonNegativedTransactions.push(transaction);
+      }
+    });
+
+    return { nonNegativedTransactions, negativedTransactions };
+  }
+
+  private findSuspiciousTransactions(transactions: Transaction[]) {
+    const nonSuspiciousTransactions: Transaction[] = [];
+    const suspiciousTransactions: Transaction[] = [];
+
+    const maxAmountInCentsPerTransaction = 5000000;
+    const isSuspiciousTransaction = (transaction: Transaction) =>
+      transaction.amount > maxAmountInCentsPerTransaction;
+
+    transactions.forEach((transaction) => {
+      if (isSuspiciousTransaction(transaction)) {
+        suspiciousTransactions.push(transaction);
+      } else {
+        nonSuspiciousTransactions.push(transaction);
+      }
+    });
+
+    return { nonSuspiciousTransactions, suspiciousTransactions };
   }
 
   private findDuplicatedTransactions(transactions: Transaction[]) {
