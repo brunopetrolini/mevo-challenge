@@ -31,20 +31,16 @@ export class SaveTransactionsUsecase {
       negativedTransactionsFilter,
     );
 
+    const transactionsWithValidAmount = transactions.filter(
+      (transaction) => !negativedTransactionsFilter(transaction),
+    );
+
     const rejectedTransactionsResume: Omit<TransactionsResume, 'id'> = {
       fileName: suspiciousTransactions[0].file || negativedTransactions[0].file,
       reason: 'File has transactions an invalid amount',
       totalNonProcessed:
         suspiciousTransactions.length + negativedTransactions.length,
     };
-
-    await this.prismaService.transactionsResume.create({
-      data: rejectedTransactionsResume,
-    });
-
-    const transactionsWithValidAmount = transactions.filter(
-      (transaction) => !negativedTransactionsFilter(transaction),
-    );
 
     const transactionsToCreate = transactionsWithValidAmount.map(
       (transaction) => ({
@@ -57,9 +53,17 @@ export class SaveTransactionsUsecase {
         fileName: transaction.file,
       }),
     );
-    await this.prismaService.transaction.createMany({
+
+    const transactionsResumePromise =
+      this.prismaService.transactionsResume.create({
+        data: rejectedTransactionsResume,
+      });
+
+    const saveTransactionsPromise = this.prismaService.transaction.createMany({
       data: transactionsToCreate,
     });
+
+    await Promise.all([saveTransactionsPromise, transactionsResumePromise]);
 
     return {
       transactionsProcessed: transactions.length,
