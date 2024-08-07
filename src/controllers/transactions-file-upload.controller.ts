@@ -1,9 +1,14 @@
-import { Controller, Post } from '@nestjs/common';
-import { parseFile } from 'fast-csv';
-import { resolve } from 'path';
+import {
+  Controller,
+  Post,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { PrismaService } from 'src/services/prisma.service';
+import { parseCSVFiles } from 'src/utils/parse-files';
 
-type Transactions = {
+type Transaction = {
   to: string;
   from: string;
   amount: number;
@@ -14,14 +19,9 @@ export class TransactionsFileUploadController {
   constructor(private readonly prismaService: PrismaService) {}
 
   @Post('/upload')
-  public async uploadFile() {
-    const parsedTransactions: Transactions[] = [];
-
-    parseFile(resolve('./payload.csv'), {
-      delimiter: ';',
-      headers: true,
-    })
-      .on('error', (error) => console.error(error))
-      .on('data', (row) => parsedTransactions.push(row));
+  @UseInterceptors(AnyFilesInterceptor())
+  public async uploadFile(@UploadedFiles() files: Array<Express.Multer.File>) {
+    const transactions = parseCSVFiles<Transaction[]>(files);
+    return { transactions };
   }
 }
