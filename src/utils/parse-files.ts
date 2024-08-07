@@ -18,10 +18,27 @@ function convertCSVtoObj(csv: string) {
   return result;
 }
 
-function parseCSVFiles<T>(files: Express.Multer.File[]): T {
-  const stringifiedFiles = files.map((file) => file.buffer.toString());
-  const data = stringifiedFiles.map((file) => convertCSVtoObj(file));
-  return data as T;
+function parseCSVFiles<T>(files: Express.Multer.File[]): {
+  name: string;
+  content: T[];
+}[] {
+  const parsedFiles = files.map((file) => {
+    const fileData = file.buffer.toString();
+    return {
+      fileName: file.originalname,
+      fileData,
+    };
+  });
+
+  const formattedFiles = parsedFiles.map((file) => {
+    const data = convertCSVtoObj(file.fileData);
+    return {
+      name: file.fileName,
+      content: data,
+    };
+  });
+
+  return formattedFiles;
 }
 
 export { parseCSVFiles };
