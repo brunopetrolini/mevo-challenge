@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TransactionsFileUploadController } from './controllers/transactions-file-upload.controller';
-import { PrismaService } from './services/prisma.service';
-import { SaveTransactionsUsecase } from './usecases/save-transactions.usecase';
+import { SaveTransactionsUsecase } from './domain/usecases/save-transactions.usecase';
+import { PrismaService } from './infrastructure/services/prisma.service';
 
 @Module({
   imports: [],

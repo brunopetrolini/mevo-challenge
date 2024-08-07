@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionsResume } from '@prisma/client';
-import { PrismaService } from 'src/services/prisma.service';
+import { PrismaService } from 'src/infrastructure/services/prisma.service';
 
 export type Transaction = {
   from: string;

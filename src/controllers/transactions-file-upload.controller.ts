@@ -8,7 +8,7 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
   SaveTransactionsUsecase,
   Transaction,
-} from 'src/usecases/save-transactions.usecase';
+} from 'src/domain/usecases/save-transactions.usecase';
 import { parseCSVFiles } from 'src/utils/parse-files';
 
 type CsvFileData = {
