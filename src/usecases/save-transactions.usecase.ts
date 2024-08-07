@@ -14,57 +14,88 @@ export class SaveTransactionsUsecase {
   constructor(private readonly prismaService: PrismaService) {}
 
   public async execute(transactions: Transaction[]) {
-    const { nonSuspiciousTransactions, suspiciousTransactions } =
-      this.findSuspiciousTransactions(transactions);
+    const transactionPerFile = this.groupTransactionsByFile(transactions);
 
-    const { nonNegativedTransactions, negativedTransactions } =
-      this.findNegativedTransactions(nonSuspiciousTransactions);
+    const savePromises = [];
 
-    const rejectedTransactionsResume: Omit<TransactionsResume, 'id'> = {
-      fileName: suspiciousTransactions[0].file || negativedTransactions[0].file,
-      reason: 'File has transactions an invalid amount',
-      totalNonProcessed:
-        suspiciousTransactions.length + negativedTransactions.length,
-    };
+    for (const file of Object.keys(transactionPerFile)) {
+      const fileTransactions: Transaction[] = transactionPerFile[file];
 
-    const { uniquesTransactions, duplicatedTransactions } =
-      this.findDuplicatedTransactions(nonNegativedTransactions);
+      const { nonSuspiciousTransactions, suspiciousTransactions } =
+        this.findSuspiciousTransactions(fileTransactions);
 
-    if (duplicatedTransactions.length !== 0) {
-      rejectedTransactionsResume.reason =
-        'File has duplicate transactions and with invalid amount';
+      const { nonNegativedTransactions, negativedTransactions } =
+        this.findNegativedTransactions(nonSuspiciousTransactions);
 
-      const totalNonProcessed =
-        suspiciousTransactions.length +
-        negativedTransactions.length +
-        duplicatedTransactions.length;
-      rejectedTransactionsResume.totalNonProcessed = totalNonProcessed;
+      const rejectedTransactionsResume: Omit<TransactionsResume, 'id'> = {
+        fileName:
+          suspiciousTransactions[0].file || negativedTransactions[0].file,
+        reason: 'File has transactions an invalid amount',
+        totalNonProcessed:
+          suspiciousTransactions.length + negativedTransactions.length,
+      };
+
+      const { uniquesTransactions, duplicatedTransactions } =
+        this.findDuplicatedTransactions(nonNegativedTransactions);
+
+      if (duplicatedTransactions.length !== 0) {
+        rejectedTransactionsResume.reason =
+          'File has duplicate transactions and with invalid amount';
+
+        const totalNonProcessed =
+          suspiciousTransactions.length +
+          negativedTransactions.length +
+          duplicatedTransactions.length;
+        rejectedTransactionsResume.totalNonProcessed = totalNonProcessed;
+      }
+
+      const transactionsResumePromise =
+        this.prismaService.transactionsResume.create({
+          data: rejectedTransactionsResume,
+        });
+
+      savePromises.push(transactionsResumePromise);
+
+      const transactionsToCreate = uniquesTransactions.map((transaction) => ({
+        id: Buffer.from(
+          `${transaction.file}#${transaction.from}#${transaction.to}#${transaction.amount}`,
+        ).toString('base64'),
+        to: transaction.to,
+        from: transaction.from,
+        amount: transaction.amount,
+        fileName: transaction.file,
+      }));
+
+      const saveTransactionsPromise = this.prismaService.transaction.createMany(
+        {
+          data: transactionsToCreate,
+        },
+      );
+
+      savePromises.push(saveTransactionsPromise);
     }
 
-    const transactionsToCreate = uniquesTransactions.map((transaction) => ({
-      id: Buffer.from(
-        `${transaction.file}#${transaction.from}#${transaction.to}#${transaction.amount}`,
-      ).toString('base64'),
-      to: transaction.to,
-      from: transaction.from,
-      amount: transaction.amount,
-      fileName: transaction.file,
-    }));
-
-    const transactionsResumePromise =
-      this.prismaService.transactionsResume.create({
-        data: rejectedTransactionsResume,
-      });
-
-    const saveTransactionsPromise = this.prismaService.transaction.createMany({
-      data: transactionsToCreate,
-    });
-
-    await Promise.all([saveTransactionsPromise, transactionsResumePromise]);
+    await Promise.all(savePromises);
 
     return {
       transactionsProcessed: transactions.length,
     };
+  }
+
+  private groupTransactionsByFile(transactions: Transaction[]) {
+    const groupedTransactions = transactions.reduce(
+      (group, transaction) => {
+        if (!group[transaction.file]) {
+          group[transaction.file] = [];
+        }
+
+        group[transaction.file].push(transaction);
+        return group;
+      },
+      {} as Record<string, Transaction[]>,
+    );
+
+    return groupedTransactions;
   }
 
   private findNegativedTransactions(transactions: Transaction[]) {
@@ -106,18 +137,20 @@ export class SaveTransactionsUsecase {
 
   private findDuplicatedTransactions(transactions: Transaction[]) {
     const uniquesSet = new Set<string>();
+
     const uniques: Transaction[] = [];
     const duplicates: Transaction[] = [];
 
-    transactions.forEach((transaction) => {
+    for (const transaction of transactions) {
       const identifier = JSON.stringify(transaction);
+
       if (uniquesSet.has(identifier)) {
         duplicates.push(transaction);
       } else {
         uniquesSet.add(identifier);
         uniques.push(transaction);
       }
-    });
+    }
 
     return { uniquesTransactions: uniques, duplicatedTransactions: duplicates };
   }
