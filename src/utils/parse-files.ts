@@ -5,8 +5,18 @@ function convertCSVtoObj(csv: string) {
   const headers = rows[0].split(';');
 
   for (let row = 1; row < rows.length; row++) {
-    const obj = {};
     const currentLine = rows[row].split(';');
+
+    if (
+      currentLine.length !== headers.length ||
+      currentLine.every((cell) => cell.trim() === '')
+    ) {
+      continue;
+    }
+
+    console.log(currentLine);
+
+    const obj = {};
 
     for (let header = 0; header < headers.length; header++) {
       obj[headers[header]] = currentLine[header];
