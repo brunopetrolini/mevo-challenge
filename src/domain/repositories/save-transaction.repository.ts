@@ -10,6 +10,8 @@ export interface SaveManyTransactionsResponse {
   count: number;
 }
 
-export interface SaveTransactionRepository {
-  saveMany(transactions: Transaction[]): Promise<SaveManyTransactionsResponse>;
+export abstract class SaveTransactionRepository {
+  abstract saveMany(
+    transactions: Transaction[],
+  ): Promise<SaveManyTransactionsResponse>;
 }

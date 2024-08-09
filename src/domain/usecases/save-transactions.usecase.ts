@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionsResume } from '@prisma/client';
-import { PrismaService } from 'src/infrastructure/services/prisma.service';
+import { SaveTransactionRepository } from '../repositories/save-transaction.repository';
+import { SaveTransactionsResumeRepository } from '../repositories/save-transactions-resume.repository';
 
 export type Transaction = {
   from: string;
@@ -11,7 +12,10 @@ export type Transaction = {
 
 @Injectable()
 export class SaveTransactionsUsecase {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly saveTransactionsRepository: SaveTransactionRepository,
+    private readonly saveTransactionsResume: SaveTransactionsResumeRepository,
+  ) {}
 
   public async execute(transactions: Transaction[]) {
     const transactionPerFile = this.groupTransactionsByFile(transactions);
@@ -49,28 +53,14 @@ export class SaveTransactionsUsecase {
         rejectedTransactionsResume.totalNonProcessed = totalNonProcessed;
       }
 
-      const transactionsResumePromise =
-        this.prismaService.transactionsResume.create({
-          data: rejectedTransactionsResume,
-        });
+      const transactionsResumePromise = this.saveTransactionsResume.saveResume(
+        rejectedTransactionsResume,
+      );
 
       savePromises.push(transactionsResumePromise);
 
-      const transactionsToCreate = uniquesTransactions.map((transaction) => ({
-        id: Buffer.from(
-          `${transaction.file}#${transaction.from}#${transaction.to}#${transaction.amount}`,
-        ).toString('base64'),
-        to: transaction.to,
-        from: transaction.from,
-        amount: transaction.amount,
-        fileName: transaction.file,
-      }));
-
-      const saveTransactionsPromise = this.prismaService.transaction.createMany(
-        {
-          data: transactionsToCreate,
-        },
-      );
+      const saveTransactionsPromise =
+        this.saveTransactionsRepository.saveMany(uniquesTransactions);
 
       savePromises.push(saveTransactionsPromise);
     }

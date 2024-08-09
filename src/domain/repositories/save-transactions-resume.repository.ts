@@ -8,6 +8,8 @@ export interface SaveResumeResponse {
   id: string;
 }
 
-export interface SaveTransactionsResumeRepository {
-  saveResume(transactionResume: TransactionResume): Promise<SaveResumeResponse>;
+export abstract class SaveTransactionsResumeRepository {
+  abstract saveResume(
+    transactionResume: TransactionResume,
+  ): Promise<SaveResumeResponse>;
 }

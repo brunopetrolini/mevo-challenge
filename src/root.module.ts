@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TransactionsFileUploadController } from './controllers/transactions-file-upload.controller';
 import { SaveTransactionsUsecase } from './domain/usecases/save-transactions.usecase';
-import { PrismaService } from './infrastructure/services/prisma.service';
+import { InfrastructureModule } from './infrastructure/infrastructure.module';
 
 @Module({
-  imports: [],
+  imports: [InfrastructureModule],
+  providers: [SaveTransactionsUsecase],
   controllers: [TransactionsFileUploadController],
-  providers: [PrismaService, SaveTransactionsUsecase],
 })
 export class RootModule {}
